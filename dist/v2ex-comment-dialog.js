@@ -7,6 +7,7 @@
 // @match        http*://*.v2ex.com/t/*
 // @grant        none
 // @require      https://cdn.staticfile.org/jquery/3.1.1/jquery.min.js
+// @updateURL    https://cdn.rawgit.com/zqjimlove/tm-scripts/master/dist/v2ex-comment-dialog.js
 // ==/UserScript==
 (function () {
     var commentMap = {};

@@ -50,7 +50,7 @@ declare var $: any;
             $showDialogElement.on('click', () => {
                 showDialog($cell);
             });
-            $showDialogElement.insertAfter($cell.find('.fade'));
+            $showDialogElement.insertAfter($cell.find('.fade:last'));
 
         }
 

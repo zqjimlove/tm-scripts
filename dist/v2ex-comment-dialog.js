@@ -44,7 +44,7 @@
             $showDialogElement.on('click', function () {
                 showDialog($cell);
             });
-            $showDialogElement.insertAfter($cell.find('.fade'));
+            $showDialogElement.insertAfter($cell.find('.fade:last'));
         }
         // if (cells.length > 0) {
         //     ((_cells) => {

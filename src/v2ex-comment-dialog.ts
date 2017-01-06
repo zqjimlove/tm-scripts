@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         v2ex comment dialog
 // @namespace    http://inwoo.me/
-// @version      102
+// @version      103
 // @description  显示对话列表
 // @author       inwoo
 // @match        http*://*.v2ex.com/t/*
@@ -19,8 +19,8 @@ declare var $: any;
     /**
      * Find all comment cells
      */
-    function findAllComment() {
-        $main.find('.box:eq(1)').find('a.dark').each((i, a) => {
+    function findAllComment(_$main = $main, inject = true) {
+        _$main.find('.box:eq(1)').find('a.dark').each((i, a) => {
             let href: String = a.href;
             let $cell = $(a).parents('.cell');
             let userId = href.substr(href.lastIndexOf('/') + 1);
@@ -28,7 +28,7 @@ declare var $: any;
                 commentMap[userId] = [];
             }
             commentMap[userId].push($cell);
-            injectShowDialogLink($cell)
+            inject && injectShowDialogLink($cell)
         });
     }
 
@@ -53,18 +53,6 @@ declare var $: any;
             $showDialogElement.insertAfter($cell.find('.fade:last'));
 
         }
-
-
-        // if (cells.length > 0) {
-
-        //     ((_cells) => {
-        //         $showDialogElement.on('click', () => {
-        //             showDialog(_cells, $cell);
-        //         });
-        //     })(cells)
-
-        //     // $cell.find('.fade').insertAfter($showDialogElement);
-        // }
     }
 
     function getLinkCommentCells($cell, userLinkedArr = []) {
@@ -117,9 +105,11 @@ declare var $: any;
             position: "fixed",
             top: '50%',
             left: '50%',
-            width:'60%',
-            maxWidth:'720px',
-            transform: 'translate3d(-50%,-50%,0)'
+            width: '60%',
+            maxWidth: '720px',
+            minWidth: '500px',
+            zIndex: 100,
+            transform: 'translate(-50%, -50%)'
         });
 
         $closeBtn.css({
@@ -134,7 +124,7 @@ declare var $: any;
         $dialogInner.css({
             overflowY: 'auto',
             background: "#fff",
-            maxHeight: (window.screen.height * .75) + 'px'
+            maxHeight: (window.innerHeight * .75) + 'px'
         }).appendTo($dialog);
 
         if (cells.indexOf(self) < 0) {
@@ -156,6 +146,25 @@ declare var $: any;
         $container.appendTo(document.body);
     }
 
-    findAllComment();
 
+    function main() {
+        let hasPage = $('.page_input').length > 0
+        if (hasPage) {
+            let curPage = parseInt($('.page_input:first').val());
+            for (let i = curPage - 1; i > 0; i--) {
+                $.get({
+                    url: `${location.pathname}?p=${i}`,
+                    async: false,
+                    success: function(res) {
+                        findAllComment($(res).find('#Main'), false);
+                    }
+                });
+            }
+            findAllComment();
+        } else {
+            findAllComment();
+        }
+    };
+
+    main();
 })();

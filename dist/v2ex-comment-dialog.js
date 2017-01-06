@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         v2ex comment dialog
 // @namespace    http://inwoo.me/
-// @version      102
+// @version      103
 // @description  显示对话列表
 // @author       inwoo
 // @match        http*://*.v2ex.com/t/*
@@ -15,8 +15,10 @@
     /**
      * Find all comment cells
      */
-    function findAllComment() {
-        $main.find('.box:eq(1)').find('a.dark').each(function (i, a) {
+    function findAllComment(_$main, inject) {
+        if (_$main === void 0) { _$main = $main; }
+        if (inject === void 0) { inject = true; }
+        _$main.find('.box:eq(1)').find('a.dark').each(function (i, a) {
             var href = a.href;
             var $cell = $(a).parents('.cell');
             var userId = href.substr(href.lastIndexOf('/') + 1);
@@ -24,7 +26,7 @@
                 commentMap[userId] = [];
             }
             commentMap[userId].push($cell);
-            injectShowDialogLink($cell);
+            inject && injectShowDialogLink($cell);
         });
     }
     function injectShowDialogLink($cell) {
@@ -46,14 +48,6 @@
             });
             $showDialogElement.insertAfter($cell.find('.fade:last'));
         }
-        // if (cells.length > 0) {
-        //     ((_cells) => {
-        //         $showDialogElement.on('click', () => {
-        //             showDialog(_cells, $cell);
-        //         });
-        //     })(cells)
-        //     // $cell.find('.fade').insertAfter($showDialogElement);
-        // }
     }
     function getLinkCommentCells($cell, userLinkedArr) {
         if (userLinkedArr === void 0) { userLinkedArr = []; }
@@ -106,7 +100,9 @@
             left: '50%',
             width: '60%',
             maxWidth: '720px',
-            transform: 'translate3d(-50%,-50%,0)'
+            minWidth: '500px',
+            zIndex: 100,
+            transform: 'translate(-50%, -50%)'
         });
         $closeBtn.css({
             color: "#fff",
@@ -118,7 +114,7 @@
         $dialogInner.css({
             overflowY: 'auto',
             background: "#fff",
-            maxHeight: (window.screen.height * .75) + 'px'
+            maxHeight: (window.innerHeight * .75) + 'px'
         }).appendTo($dialog);
         if (cells.indexOf(self) < 0) {
             cells.push(self);
@@ -135,5 +131,25 @@
         $container.append($dialog);
         $container.appendTo(document.body);
     }
-    findAllComment();
+    function main() {
+        var hasPage = $('.page_input').length > 0;
+        if (hasPage) {
+            var curPage = parseInt($('.page_input:first').val());
+            for (var i = curPage - 1; i > 0; i--) {
+                $.get({
+                    url: location.pathname + "?p=" + i,
+                    async: false,
+                    success: function (res) {
+                        findAllComment($(res).find('#Main'), false);
+                    }
+                });
+            }
+            findAllComment();
+        }
+        else {
+            findAllComment();
+        }
+    }
+    ;
+    main();
 })();

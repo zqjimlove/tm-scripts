@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         v2ex comment dialog
 // @namespace    http://inwoo.me/
-// @version      0.0.1
+// @version      101
 // @description  显示对话列表
 // @author       inwoo
 // @match        http*://*.v2ex.com/t/*

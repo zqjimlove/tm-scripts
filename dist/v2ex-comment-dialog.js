@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         v2ex comment dialog
 // @namespace    http://inwoo.me/
-// @version      101
+// @version      102
 // @description  显示对话列表
 // @author       inwoo
 // @match        http*://*.v2ex.com/t/*
@@ -102,9 +102,10 @@
         $dialog.css({
             position: "fixed",
             top: '50%',
-            left: '20%',
-            right: '20%',
-            transform: 'translate3d(0,-50%,0)'
+            left: '50%',
+            width: '60%',
+            maxWidth: '720px',
+            transform: 'translate3d(-50%,-50%,0)'
         });
         $closeBtn.css({
             color: "#fff",

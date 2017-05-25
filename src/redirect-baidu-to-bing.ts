@@ -28,6 +28,12 @@
 
 
     let queryObj = searchToObject();
+    let hostnames = location.hostname.split('.');
+    let ignoreNames = ['tongji', 'baike', 'naotu', 'pan'];
+
+    if (ignoreNames.indexOf(hostnames[0]) > -1) {
+        return;
+    }
 
     if (queryObj.w) {
         window.location.replace(location.protocol + '//cn.bing.com/search?q=' + searchToObject().wd);

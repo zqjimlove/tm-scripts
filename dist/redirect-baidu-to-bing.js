@@ -20,6 +20,11 @@
         return obj;
     };
     var queryObj = searchToObject();
+    var hostnames = location.hostname.split('.');
+    var ignoreNames = ['tongji', 'baike', 'naotu', 'pan'];
+    if (ignoreNames.indexOf(hostnames[0]) > -1) {
+        return;
+    }
     if (queryObj.w) {
         window.location.replace(location.protocol + '//cn.bing.com/search?q=' + searchToObject().wd);
     }

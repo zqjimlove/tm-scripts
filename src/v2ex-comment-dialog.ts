@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         v2ex comment dialog
 // @namespace    http://inwoo.me/
-// @version      103
+// @version      104
 // @description  显示对话列表
 // @author       inwoo
 // @match        http*://*.v2ex.com/t/*
@@ -46,11 +46,11 @@ declare var $: any;
             let $showDialogElement = $('<a class="show-commments-dialog" href="javascript:;">显示对话</a>');
             $showDialogElement.css({
                 marginLeft: '10px'
-            });
+            });·
             $showDialogElement.on('click', () => {
                 showDialog($cell);
             });
-            $showDialogElement.insertAfter($cell.find('.fade:last'));
+            $showDialogElement.insertAfter($cell.find('.ago'));
 
         }
     }

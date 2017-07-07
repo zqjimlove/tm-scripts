@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         v2ex comment dialog
 // @namespace    http://inwoo.me/
-// @version      103
+// @version      104
 // @description  显示对话列表
 // @author       inwoo
 // @match        http*://*.v2ex.com/t/*
@@ -46,7 +46,7 @@
             $showDialogElement.on('click', function () {
                 showDialog($cell);
             });
-            $showDialogElement.insertAfter($cell.find('.fade:last'));
+            $showDialogElement.insertAfter($cell.find('.ago'));
         }
     }
     function getLinkCommentCells($cell, userLinkedArr) {

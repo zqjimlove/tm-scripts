@@ -13,8 +13,8 @@ function _iterableToArrayLimit(arr, i) { if (typeof Symbol === "undefined" || !(
 function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
 // ==UserScript==
-// @name        YAPI 2 D.TS
-// @namespace   Violentmonkey Scripts
+// @name        YAPI 2 Typescript DTS
+// @namespace   YAPI 2 Typescript DTS
 // @match       *://yapi.golcer.cn/*
 // @grant       none
 // @version     1.0.0
@@ -22,19 +22,22 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 // @require     https://cdn.staticfile.org/axios/0.19.2/axios.min.js
 // @require     https://cdn.staticfile.org/jquery/3.1.1/jquery.min.js
 // @description 2020/3/30 上午9:58:14
-// @updateURL    https://cdn.rawgit.com/zqjimlove/tm-scripts/master/dist/yapi2ts.js
+// @updateURL   https://cdn.rawgit.com/zqjimlove/tm-scripts/master/dist/yapi2ts.js
+// @icon        https://api.iconify.design/fa-solid:cat.svg?color=%23ff502c
 // ==/UserScript==
 (function () {
   function tsGen(typeName, reqProperties, resProperties) {
     function _propertiesGen(typeName, properties) {
       var isExport = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
       var rootResult = {};
+      var comments = {};
       var result = '';
 
       for (var key in properties) {
         if (Object.prototype.hasOwnProperty.call(properties, key)) {
           var element = properties[key];
           var type = element.type,
+              description = element.description,
               _element$items = element.items;
           _element$items = _element$items === void 0 ? {
             type: '',
@@ -42,6 +45,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
           } : _element$items;
           var itemsType = _element$items.type,
               itemsProperties = _element$items.properties;
+          comments[key] = description;
 
           switch (type) {
             case 'string':
@@ -73,12 +77,38 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
         }
       }
 
-      result += "".concat(isExport ? 'export ' : '', "type ").concat(typeName, " = ") + JSON.stringify(rootResult, void 0, 2).replace(/"/gi, '') + ';\n\n';
+      function injectComments(code) {
+        code = code.replace(/(.*)\n/g, function (line) {
+          var reg = /(\s*)(\w*):(\w*)/gi;
+          var matcher = reg.exec(line);
+
+          if (matcher) {
+            var _matcher = _slicedToArray(matcher, 3),
+                _ = _matcher[0],
+                space = _matcher[1],
+                _key = _matcher[2];
+
+            if (comments[_key]) {
+              var comment = space + "/** ".concat(comments[_key], " */ \n\n");
+              return comment + line;
+            }
+          }
+
+          return line;
+        });
+        return code;
+      }
+
+      result += "".concat(isExport ? 'export ' : '', "type ").concat(typeName, " = ") + injectComments(JSON.stringify(rootResult, void 0, 2).replace(/"/gi, '')) + ';\n\n';
       return result;
+    }
+
+    function format(code) {
+      return code.replace(/,/gi, ';').replace(/(.*)\n/gi, '  $1\n');
     } // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
 
 
-    return "export namespace ".concat(typeName, "Model {\n\n") + _propertiesGen('RequestData', reqProperties, true).replace(/(.*)\n/gi, '  $1\n') + _propertiesGen('ResponseData', resProperties, true).replace(/(.*)\n/gi, '  $1\n') + '}';
+    return "export namespace ".concat(typeName, "Model {\n\n") + format(_propertiesGen('RequestData', reqProperties, true)) + format(_propertiesGen('ResponseData', resProperties, true)) + '}';
   }
 
   function fetchInterfaceData() {

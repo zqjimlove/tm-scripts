@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name        YAPI 2 D.TS
-// @namespace   Violentmonkey Scripts
+// @name        YAPI 2 Typescript DTS
+// @namespace   YAPI 2 Typescript DTS
 // @match       *://yapi.golcer.cn/*
 // @grant       none
 // @version     1.0.0
@@ -8,7 +8,8 @@
 // @require     https://cdn.staticfile.org/axios/0.19.2/axios.min.js
 // @require     https://cdn.staticfile.org/jquery/3.1.1/jquery.min.js
 // @description 2020/3/30 上午9:58:14
-// @updateURL    https://cdn.rawgit.com/zqjimlove/tm-scripts/master/dist/yapi2ts.js
+// @updateURL   https://cdn.rawgit.com/zqjimlove/tm-scripts/master/dist/yapi2ts.js
+// @icon        https://api.iconify.design/fa-solid:cat.svg?color=%23ff502c
 // ==/UserScript==
 
 import { AxiosStatic } from '../node_modules/axios/index'
@@ -23,17 +24,22 @@ declare const $: JQueryStatic
       isExport = false
     ): string {
       const rootResult = {}
+      const comments = {}
       let result = ''
       for (const key in properties) {
         if (Object.prototype.hasOwnProperty.call(properties, key)) {
           const element = properties[key]
           const {
             type,
+            description,
             items: { type: itemsType, properties: itemsProperties } = {
               type: '',
               properties: []
             }
           } = element
+
+          comments[key] = description
+
           switch (type) {
             case 'string':
             case 'number':
@@ -60,24 +66,41 @@ declare const $: JQueryStatic
           }
         }
       }
+
+      function injectComments(code): string {
+        code = code.replace(/(.*)\n/g, function(line) {
+          const reg = /(\s*)(\w*):(\w*)/gi
+          const matcher = reg.exec(line)
+          if (matcher) {
+            const [_, space, key] = matcher
+            if (comments[key]) {
+              const comment = space + `/** ${comments[key]} */ \n\n`
+              return comment + line
+            }
+          }
+          return line
+        })
+        return code
+      }
+
       result +=
         `${isExport ? 'export ' : ''}type ${typeName} = ` +
-        JSON.stringify(rootResult, void 0, 2).replace(/"/gi, '') +
+        injectComments(
+          JSON.stringify(rootResult, void 0, 2).replace(/"/gi, '')
+        ) +
         ';\n\n'
       return result
+    }
+
+    function format(code): string {
+      return code.replace(/,/gi, ';').replace(/(.*)\n/gi, '  $1\n')
     }
 
     // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
     return (
       `export namespace ${typeName}Model {\n\n` +
-      _propertiesGen('RequestData', reqProperties, true).replace(
-        /(.*)\n/gi,
-        '  $1\n'
-      ) +
-      _propertiesGen('ResponseData', resProperties, true).replace(
-        /(.*)\n/gi,
-        '  $1\n'
-      ) +
+      format(_propertiesGen('RequestData', reqProperties, true)) +
+      format(_propertiesGen('ResponseData', resProperties, true)) +
       '}'
     )
   }

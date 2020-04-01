@@ -17,91 +17,155 @@ import { AxiosStatic } from '../node_modules/axios/index'
 declare const axios: AxiosStatic
 declare const $: JQueryStatic
 ;((): void => {
-  function tsGen(typeName, reqProperties, resProperties): string {
+  function formatSafeName(typeName: string): string {
+    typeName = typeName.replace(/[^A-Za-z0-9]/gi, '$')
+    if (/\d/.test(typeName[0])) {
+      typeName = '$' + typeName
+    }
+    return typeName
+  }
+
+  function formatSafeKey(typeName: string): string {
+    if (/[\W]/.test(typeName)) {
+      return `"${typeName}"`
+    }
+    return typeName
+  }
+
+  function isBaseType(type): boolean {
+    return ['string', 'number', 'boolean', 'integer'].includes(type)
+  }
+
+  function formatBaseType(type): string {
+    return type === 'integer' ? 'number' : type
+  }
+
+  function prettyCode(code: string): string {
+    const codes = code.split('\n')
+    let spaces = ''
+    return codes
+      .map(line => {
+        if (!line) {
+          return line
+        }
+        if (~line.indexOf('}')) {
+          spaces = spaces.substring(2)
+        }
+        const result = spaces + line
+        if (~line.indexOf('{')) {
+          spaces += '  '
+        }
+        return result
+      })
+      .join('\n')
+  }
+
+  function tsGen(modelName, reqProperties, resProperties): string {
+    const NSScopeStack = []
     function _propertiesGen(
+      scopeStack: string[],
       typeName: string,
       properties: any,
-      isExport = false
-    ): string {
-      const rootResult = {}
-      const comments = {}
+      option: {
+        assignment?: string
+        isKey?: boolean
+        isExport?: boolean
+      } = {}
+    ): void {
+      // typeName = formatTypeName(typeName)
+      const { assignment = ' =', isKey = false, isExport = false } = option
+      const { type, properties: childProperties, description } = properties
+      let {
+        items: {
+          type: itemsType,
+          properties: itemsProperties,
+          items: itemsChildItems
+        } = {
+          type: '',
+          properties: [],
+          items: []
+        }
+      } = properties
+
+      const objectStack = []
+      const arrayItemName = formatSafeName(typeName + 'Item')
+
+      if (isKey) {
+        typeName = formatSafeKey(typeName)
+      }
+
       let result = ''
-      for (const key in properties) {
-        if (Object.prototype.hasOwnProperty.call(properties, key)) {
-          const element = properties[key]
-          const {
-            type,
-            description,
-            items: { type: itemsType, properties: itemsProperties } = {
-              type: '',
-              properties: []
-            }
-          } = element
+      if (description) {
+        result += `/** ${description} */\n\n`
+      }
 
-          comments[key] = description
-
-          switch (type) {
-            case 'string':
-            case 'number':
-            case 'boolean':
-              rootResult[key] = type
-              break
-            case 'integer':
-              rootResult[key] = 'number'
-              break
-            case 'array':
-              if (itemsType === 'object') {
-                let itemKey = key + 'Item'
-                itemKey = itemKey[0].toLocaleUpperCase() + itemKey.substring(1)
-                rootResult[key] = `Array<${itemKey}>`
-                result += _propertiesGen(itemKey, itemsProperties)
-              } else {
-                rootResult[key] = 'Array<any>'
-              }
-
-              break
-            case 'object':
-              result[key] = 'any'
-              break
-          }
+      function _itemsGen(arrayDep = 1): string {
+        if (itemsType === 'object' /* || itemsType === 'array' */) {
+          _propertiesGen(NSScopeStack, arrayItemName, {
+            type: 'object',
+            properties: itemsProperties
+          })
+          return (
+            `${arrayItemName}` +
+            Array(arrayDep)
+              .fill('[]')
+              .join('')
+          )
+        } else if (isBaseType(itemsType)) {
+          /* result += `${typeName}${assignment} ${formatBaseType(itemsType)}` */
+          return (
+            formatBaseType(itemsType) +
+            Array(arrayDep)
+              .fill('[]')
+              .join('')
+          )
+        } else if (itemsType === 'array') {
+          itemsType = itemsChildItems.type
+          itemsProperties = itemsChildItems.properties
+          itemsChildItems = itemsChildItems.items
+          return _itemsGen(arrayDep + 1)
         }
       }
 
-      function injectComments(code): string {
-        code = code.replace(/(.*)\n/g, function(line) {
-          const reg = /(\s*)(\w*):(\w*)/gi
-          const matcher = reg.exec(line)
-          if (matcher) {
-            const [_, space, key] = matcher
-            if (comments[key]) {
-              const comment = space + `/** ${comments[key]} */ \n\n`
-              return comment + line
-            }
+      switch (true) {
+        case type === 'array':
+          
+          result += `${typeName}${assignment} ${_itemsGen()};`
+          break
+        case type === 'object':
+          for (const key in childProperties) {
+            _propertiesGen(objectStack, key, childProperties[key], {
+              assignment: ':',
+              isKey: true
+            })
           }
-          return line
-        })
-        return code
+          result += `${formatSafeName(typeName)}${assignment} {\n`
+          result += objectStack.join('\n')
+          result += `\n};`
+          break
+        case isBaseType(type):
+          result += `${typeName}${assignment} ${formatBaseType(type)};`
+          break
+        default:
+          result += `${typeName}${assignment} any;`
       }
 
-      result +=
-        `${isExport ? 'export ' : ''}type ${typeName} = ` +
-        injectComments(
-          JSON.stringify(rootResult, void 0, 2).replace(/"/gi, '')
-        ) +
-        ';\n\n'
-      return result
+      scopeStack.push(
+        `${isExport ? 'export ' : ''}` + (isKey ? '' : 'type ') + result
+      )
     }
 
-    function format(code): string {
-      return code.replace(/,/gi, ';').replace(/(.*)\n/gi, '  $1\n')
-    }
-
+    _propertiesGen(NSScopeStack, 'RequestData', reqProperties, {
+      isExport: true
+    })
+    _propertiesGen(NSScopeStack, 'ResponseData', resProperties, {
+      isExport: true
+    })
     // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
-    return (
-      `export namespace ${typeName}Model {\n\n` +
-      format(_propertiesGen('RequestData', reqProperties, true)) +
-      format(_propertiesGen('ResponseData', resProperties, true)) +
-      '}'
+    return prettyCode(
+      `export namespace ${modelName}Model {\n` +
+        NSScopeStack.map(val => `${val}`).join('\n\n') +
+        '\n}\n'
     )
   }
 
@@ -132,19 +196,20 @@ declare const $: JQueryStatic
             data: { req_body_other: reqBodyStr, res_body: resBodyStr }
           } = _data
 
-          const reqBody = JSON.parse(reqBodyStr)
-          const resBody = JSON.parse(resBodyStr)
+          const reqBody = JSON.parse(reqBodyStr || '{}')
+          const resBody = JSON.parse(resBodyStr || '{}')
 
-          const { properties: reqProperties, required: reqRequired } = reqBody
+          // const { properties: reqProperties, required: reqRequired } = reqBody
           const { properties: resProperties, required: resRequired } = resBody
-
-          const resPropertiesData = resProperties.data.properties
-          const code = tsGen(namespamce, reqProperties, resPropertiesData)
+          console.log(resBody)
+          const resBodyData = resProperties.data
+          const code = tsGen(namespamce, reqBody, resBodyData)
           const el = $('#yapi2tsTA').html(code)[0] as HTMLInputElement
           el.select()
           el.setSelectionRange(0, code.length)
           document.execCommand('copy')
-          alert('生成成功，已复制到粘贴版')
+          // alert('生成成功，已复制到粘贴版')
+          console.log(code)
         }
       })
   }

@@ -26,89 +26,155 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 // @icon        https://api.iconify.design/fa-solid:cat.svg?color=%23ff502c
 // ==/UserScript==
 (function () {
-  function tsGen(typeName, reqProperties, resProperties) {
-    function _propertiesGen(typeName, properties) {
-      var isExport = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
-      var rootResult = {};
-      var comments = {};
+  function formatSafeName(typeName) {
+    typeName = typeName.replace(/[^A-Za-z0-9]/gi, '$');
+
+    if (/\d/.test(typeName[0])) {
+      typeName = '$' + typeName;
+    }
+
+    return typeName;
+  }
+
+  function formatSafeKey(typeName) {
+    if (/[\W]/.test(typeName)) {
+      return "\"".concat(typeName, "\"");
+    }
+
+    return typeName;
+  }
+
+  function isBaseType(type) {
+    return ['string', 'number', 'boolean', 'integer'].includes(type);
+  }
+
+  function formatBaseType(type) {
+    return type === 'integer' ? 'number' : type;
+  }
+
+  function prettyCode(code) {
+    var codes = code.split('\n');
+    var spaces = '';
+    return codes.map(function (line) {
+      if (!line) {
+        return line;
+      }
+
+      if (~line.indexOf('}')) {
+        spaces = spaces.substring(2);
+      }
+
+      var result = spaces + line;
+
+      if (~line.indexOf('{')) {
+        spaces += '  ';
+      }
+
+      return result;
+    }).join('\n');
+  }
+
+  function tsGen(modelName, reqProperties, resProperties) {
+    var NSScopeStack = [];
+
+    function _propertiesGen(scopeStack, typeName, properties) {
+      var option = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+      // typeName = formatTypeName(typeName)
+      var _option$assignment = option.assignment,
+          assignment = _option$assignment === void 0 ? ' =' : _option$assignment,
+          _option$isKey = option.isKey,
+          isKey = _option$isKey === void 0 ? false : _option$isKey,
+          _option$isExport = option.isExport,
+          isExport = _option$isExport === void 0 ? false : _option$isExport;
+      var type = properties.type,
+          childProperties = properties.properties,
+          description = properties.description;
+      var _properties$items = properties.items;
+      _properties$items = _properties$items === void 0 ? {
+        type: '',
+        properties: [],
+        items: []
+      } : _properties$items;
+      var itemsType = _properties$items.type,
+          itemsProperties = _properties$items.properties,
+          itemsChildItems = _properties$items.items;
+      var objectStack = [];
+      var arrayItemName = formatSafeName(typeName + 'Item');
+
+      if (isKey) {
+        typeName = formatSafeKey(typeName);
+      }
+
       var result = '';
 
-      for (var key in properties) {
-        if (Object.prototype.hasOwnProperty.call(properties, key)) {
-          var element = properties[key];
-          var type = element.type,
-              description = element.description,
-              _element$items = element.items;
-          _element$items = _element$items === void 0 ? {
-            type: '',
-            properties: []
-          } : _element$items;
-          var itemsType = _element$items.type,
-              itemsProperties = _element$items.properties;
-          comments[key] = description;
+      if (description) {
+        result += "/** ".concat(description, " */\n\n");
+      }
 
-          switch (type) {
-            case 'string':
-            case 'number':
-            case 'boolean':
-              rootResult[key] = type;
-              break;
+      function _itemsGen() {
+        var arrayDep = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 1;
 
-            case 'integer':
-              rootResult[key] = 'number';
-              break;
+        if (itemsType === 'object'
+        /* || itemsType === 'array' */
+        ) {
+            _propertiesGen(NSScopeStack, arrayItemName, {
+              type: 'object',
+              properties: itemsProperties
+            });
 
-            case 'array':
-              if (itemsType === 'object') {
-                var itemKey = key + 'Item';
-                itemKey = itemKey[0].toLocaleUpperCase() + itemKey.substring(1);
-                rootResult[key] = "Array<".concat(itemKey, ">");
-                result += _propertiesGen(itemKey, itemsProperties);
-              } else {
-                rootResult[key] = 'Array<any>';
-              }
-
-              break;
-
-            case 'object':
-              result[key] = 'any';
-              break;
-          }
+            return "".concat(arrayItemName) + Array(arrayDep).fill('[]').join('');
+          } else if (isBaseType(itemsType)) {
+          /* result += `${typeName}${assignment} ${formatBaseType(itemsType)}` */
+          return formatBaseType(itemsType) + Array(arrayDep).fill('[]').join('');
+        } else if (itemsType === 'array') {
+          itemsType = itemsChildItems.type;
+          itemsProperties = itemsChildItems.properties;
+          itemsChildItems = itemsChildItems.items;
+          return _itemsGen(arrayDep + 1);
         }
       }
 
-      function injectComments(code) {
-        code = code.replace(/(.*)\n/g, function (line) {
-          var reg = /(\s*)(\w*):(\w*)/gi;
-          var matcher = reg.exec(line);
+      switch (true) {
+        case type === 'array':
+          result += "".concat(typeName).concat(assignment, " ").concat(_itemsGen(), ";");
+          break;
 
-          if (matcher) {
-            var _matcher = _slicedToArray(matcher, 3),
-                _ = _matcher[0],
-                space = _matcher[1],
-                _key = _matcher[2];
-
-            if (comments[_key]) {
-              var comment = space + "/** ".concat(comments[_key], " */ \n\n");
-              return comment + line;
-            }
+        case type === 'object':
+          for (var key in childProperties) {
+            _propertiesGen(objectStack, key, childProperties[key], {
+              assignment: ':',
+              isKey: true
+            });
           }
 
-          return line;
-        });
-        return code;
+          result += "".concat(formatSafeName(typeName)).concat(assignment, " {\n");
+          result += objectStack.join('\n');
+          result += "\n};";
+          break;
+
+        case isBaseType(type):
+          result += "".concat(typeName).concat(assignment, " ").concat(formatBaseType(type), ";");
+          break;
+
+        default:
+          result += "".concat(typeName).concat(assignment, " any;");
       }
 
-      result += "".concat(isExport ? 'export ' : '', "type ").concat(typeName, " = ") + injectComments(JSON.stringify(rootResult, void 0, 2).replace(/"/gi, '')) + ';\n\n';
-      return result;
+      scopeStack.push("".concat(isExport ? 'export ' : '') + (isKey ? '' : 'type ') + result);
     }
 
-    function format(code) {
-      return code.replace(/,/gi, ';').replace(/(.*)\n/gi, '  $1\n');
-    } // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
+    _propertiesGen(NSScopeStack, 'RequestData', reqProperties, {
+      isExport: true
+    });
+
+    _propertiesGen(NSScopeStack, 'ResponseData', resProperties, {
+      isExport: true
+    }); // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
 
 
-    return "export namespace ".concat(typeName, "Model {\n\n") + format(_propertiesGen('RequestData', reqProperties, true)) + format(_propertiesGen('ResponseData', resProperties, true)) + '}';
+    return prettyCode("export namespace ".concat(modelName, "Model {\n") + NSScopeStack.map(function (val) {
+      return "".concat(val);
+    }).join('\n\n') + '\n}\n');
   }
 
   function fetchInterfaceData() {
@@ -145,19 +211,20 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
         var _data$data = _data.data,
             reqBodyStr = _data$data.req_body_other,
             resBodyStr = _data$data.res_body;
-        var reqBody = JSON.parse(reqBodyStr);
-        var resBody = JSON.parse(resBodyStr);
-        var reqProperties = reqBody.properties,
-            reqRequired = reqBody.required;
+        var reqBody = JSON.parse(reqBodyStr || '{}');
+        var resBody = JSON.parse(resBodyStr || '{}'); // const { properties: reqProperties, required: reqRequired } = reqBody
+
         var resProperties = resBody.properties,
             resRequired = resBody.required;
-        var resPropertiesData = resProperties.data.properties;
-        var code = tsGen(namespamce, reqProperties, resPropertiesData);
+        console.log(resBody);
+        var resBodyData = resProperties.data;
+        var code = tsGen(namespamce, reqBody, resBodyData);
         var el = $('#yapi2tsTA').html(code)[0];
         el.select();
         el.setSelectionRange(0, code.length);
-        document.execCommand('copy');
-        alert('生成成功，已复制到粘贴版');
+        document.execCommand('copy'); // alert('生成成功，已复制到粘贴版')
+
+        console.log(code);
       }
     });
   }

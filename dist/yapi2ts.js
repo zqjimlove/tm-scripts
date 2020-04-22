@@ -17,7 +17,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 // @namespace   YAPI 2 Typescript DTS
 // @match       *://yapi.golcer.cn/*
 // @grant       none
-// @version     1.0.0
+// @version     1.0.1
 // @author      inwoo
 // @require     https://cdn.staticfile.org/axios/0.19.2/axios.min.js
 // @require     https://cdn.staticfile.org/jquery/3.1.1/jquery.min.js

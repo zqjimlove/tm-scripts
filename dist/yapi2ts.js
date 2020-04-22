@@ -76,14 +76,27 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
 
   function tsGen(modelName, reqProperties, resProperties) {
     var NSScopeStack = [];
+    var rootPropertiesStack = [{
+      typeName: 'RequestData',
+      properties: reqProperties,
+      option: {
+        isExport: true
+      }
+    }, {
+      typeName: 'ResponseData',
+      properties: resProperties,
+      option: {
+        isExport: true
+      }
+    }];
 
     function _propertiesGen(scopeStack, typeName, properties) {
       var option = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
       // typeName = formatTypeName(typeName)
       var _option$assignment = option.assignment,
           assignment = _option$assignment === void 0 ? ' =' : _option$assignment,
-          _option$isKey = option.isKey,
-          isKey = _option$isKey === void 0 ? false : _option$isKey,
+          _option$isObjectPrope = option.isObjectPropertie,
+          isObjectPropertie = _option$isObjectPrope === void 0 ? false : _option$isObjectPrope,
           _option$isExport = option.isExport,
           isExport = _option$isExport === void 0 ? false : _option$isExport;
       var type = properties.type,
@@ -101,7 +114,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
       var objectStack = [];
       var arrayItemName = formatSafeName(typeName + 'Item');
 
-      if (isKey) {
+      if (isObjectPropertie) {
         typeName = formatSafeKey(typeName);
       }
 
@@ -117,11 +130,17 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
         if (itemsType === 'object'
         /* || itemsType === 'array' */
         ) {
-            _propertiesGen(NSScopeStack, arrayItemName, {
+            /* _propertiesGen(NSScopeStack, arrayItemName, {
               type: 'object',
               properties: itemsProperties
+            }) */
+            rootPropertiesStack.push({
+              typeName: arrayItemName,
+              properties: {
+                type: 'object',
+                properties: itemsProperties
+              }
             });
-
             return "".concat(arrayItemName) + Array(arrayDep).fill('[]').join('');
           } else if (isBaseType(itemsType)) {
           /* result += `${typeName}${assignment} ${formatBaseType(itemsType)}` */
@@ -143,7 +162,7 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
           for (var key in childProperties) {
             _propertiesGen(objectStack, key, childProperties[key], {
               assignment: ':',
-              isKey: true
+              isObjectPropertie: true
             });
           }
 
@@ -160,17 +179,27 @@ function _arrayWithHoles(arr) { if (Array.isArray(arr)) return arr; }
           result += "".concat(typeName).concat(assignment, " any;");
       }
 
-      scopeStack.push("".concat(isExport ? 'export ' : '') + (isKey ? '' : 'type ') + result);
+      scopeStack.push("".concat(isExport ? 'declare ' : '') + (isObjectPropertie ? '' : 'type ') + result);
     }
-
-    _propertiesGen(NSScopeStack, 'RequestData', reqProperties, {
+    /*  _propertiesGen(NSScopeStack, 'RequestData', reqProperties, {
       isExport: true
-    });
-
+    })
     _propertiesGen(NSScopeStack, 'ResponseData', resProperties, {
       isExport: true
-    }); // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
+    }) */
+    // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
 
+
+    var task;
+
+    while (task = rootPropertiesStack.pop()) {
+      var _task = task,
+          typeName = _task.typeName,
+          properties = _task.properties,
+          option = _task.option;
+
+      _propertiesGen(NSScopeStack, typeName, properties, option);
+    }
 
     return prettyCode("export namespace ".concat(modelName, "Model {\n") + NSScopeStack.map(function (val) {
       return "".concat(val);

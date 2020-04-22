@@ -62,18 +62,44 @@ declare const $: JQueryStatic
 
   function tsGen(modelName, reqProperties, resProperties): string {
     const NSScopeStack = []
+
+    const rootPropertiesStack: {
+      typeName: string
+      properties: any
+      option?: {
+        assignment?: string
+        isObjectPropertie?: boolean
+        isExport?: boolean
+      }
+    }[] = [
+      {
+        typeName: 'RequestData',
+        properties: reqProperties,
+        option: {
+          isExport: true
+        }
+      },
+      {
+        typeName: 'ResponseData',
+        properties: resProperties,
+        option: {
+          isExport: true
+        }
+      }
+    ]
+
     function _propertiesGen(
       scopeStack: string[],
       typeName: string,
       properties: any,
       option: {
         assignment?: string
-        isKey?: boolean
+        isObjectPropertie?: boolean
         isExport?: boolean
       } = {}
     ): void {
       // typeName = formatTypeName(typeName)
-      const { assignment = ' =', isKey = false, isExport = false } = option
+      const { assignment = ' =', isObjectPropertie = false, isExport = false } = option
       const { type, properties: childProperties, description } = properties
       let {
         items: {
@@ -90,7 +116,7 @@ declare const $: JQueryStatic
       const objectStack = []
       const arrayItemName = formatSafeName(typeName + 'Item')
 
-      if (isKey) {
+      if (isObjectPropertie) {
         typeName = formatSafeKey(typeName)
       }
 
@@ -101,9 +127,16 @@ declare const $: JQueryStatic
 
       function _itemsGen(arrayDep = 1): string {
         if (itemsType === 'object' /* || itemsType === 'array' */) {
-          _propertiesGen(NSScopeStack, arrayItemName, {
+          /* _propertiesGen(NSScopeStack, arrayItemName, {
             type: 'object',
             properties: itemsProperties
+          }) */
+          rootPropertiesStack.push({
+            typeName: arrayItemName,
+            properties: {
+              type: 'object',
+              properties: itemsProperties
+            }
           })
           return (
             `${arrayItemName}` +
@@ -129,14 +162,13 @@ declare const $: JQueryStatic
 
       switch (true) {
         case type === 'array':
-          
           result += `${typeName}${assignment} ${_itemsGen()};`
           break
         case type === 'object':
           for (const key in childProperties) {
             _propertiesGen(objectStack, key, childProperties[key], {
               assignment: ':',
-              isKey: true
+              isObjectPropertie: true
             })
           }
           result += `${formatSafeName(typeName)}${assignment} {\n`
@@ -151,17 +183,24 @@ declare const $: JQueryStatic
       }
 
       scopeStack.push(
-        `${isExport ? 'export ' : ''}` + (isKey ? '' : 'type ') + result
+        `${isExport ? 'declare ' : ''}` + (isObjectPropertie ? '' : 'type ') + result
       )
     }
 
-    _propertiesGen(NSScopeStack, 'RequestData', reqProperties, {
+    /*  _propertiesGen(NSScopeStack, 'RequestData', reqProperties, {
       isExport: true
     })
     _propertiesGen(NSScopeStack, 'ResponseData', resProperties, {
       isExport: true
-    })
+    }) */
     // return `export namespace ${typeName}Model {\n${_propertiesGen('RequestData', reqProperties, true)}${_propertiesGen('ResponseData', resProperties, true)}\n}`
+
+    let task
+    while ((task = rootPropertiesStack.pop())) {
+      const { typeName, properties, option } = task
+      _propertiesGen(NSScopeStack, typeName, properties, option)
+    }
+
     return prettyCode(
       `export namespace ${modelName}Model {\n` +
         NSScopeStack.map(val => `${val}`).join('\n\n') +

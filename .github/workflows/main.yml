@@ -26,6 +26,6 @@ jobs:
           utcOffset: "+08:00"
       - name: sed test
         run: |
-          sed -i -e 's/"version": "(.*)?"/"version": "$1-beta${{ steps.current-time.outputs.formattedTime }}",/g' package.json
+          sed -ire 's/"version": "(.*)?"/"version": "\1-beta${{ steps.current-time.outputs.formattedTime }}",/g' package.json
       - name: cat
         run: cat package.json
